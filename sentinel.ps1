@@ -5,14 +5,25 @@
 [CmdletBinding()]
 param(
     [Parameter(ValueFromRemainingArguments = $true)]
-    [string[]]$Arguments
+    [string[]]$Arguments,
+    [switch]$Hidden
 )
 
 $scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent -Path $MyInvocation.MyCommand.Definition }
 $venvPython = Join-Path $scriptDir ".venv\Scripts\python.exe"
 
-if (Test-Path $venvPython) {
-    & $venvPython -m sentinel.main @Arguments
+if (-not (Test-Path $venvPython)) {
+    $venvPython = "python"
+}
+
+if ($Hidden) {
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $venvPython
+    $psi.Arguments = "-m sentinel.main " + ($Arguments -join ' ')
+    $psi.WindowStyle = 'Hidden'
+    $psi.CreateNoWindow = $true
+    $psi.UseShellExecute = $true
+    [System.Diagnostics.Process]::Start($psi) | Out-Null
 } else {
-    & python -m sentinel.main @Arguments
+    & $venvPython -m sentinel.main @Arguments
 }

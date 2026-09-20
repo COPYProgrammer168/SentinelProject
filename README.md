@@ -13,8 +13,11 @@ You can run Sentinel using the built-in launcher scripts:
 # Check status and baseline stats
 .\sentinel.ps1 status
 
-# Start real-time monitoring
+# Start real-time monitoring (visible terminal)
 .\sentinel.ps1 run
+
+# Start real-time monitoring (hidden, no terminal window)
+.\sentinel.ps1 -Hidden run
 
 # Start monitoring with immediate anomaly alerting (bypasses learning mode)
 .\sentinel.ps1 run --immediate-mode
@@ -55,6 +58,9 @@ sentinel.bat allowlist list
 sentinel.bat alerts
 sentinel.bat dashboard
 sentinel.bat overlay
+
+:: Run hidden without terminal window (double-click sentinel-hidden.vbs)
+sentinel-hidden.vbs
 ```
 
 ### Direct Python / Virtualenv
@@ -71,6 +77,10 @@ python -m sentinel.main dashboard
 
 # Start overlay widget
 python -m sentinel.main overlay
+
+# Run without terminal window (PowerShell)
+# Use the -Hidden switch with sentinel.ps1, or run pythonw.exe directly:
+& .\.venv\Scripts\pythonw.exe -m sentinel.main run
 
 ### Rainmeter Skin
 ```powershell
