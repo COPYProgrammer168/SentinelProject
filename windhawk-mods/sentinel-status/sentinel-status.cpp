@@ -1,3 +1,33 @@
+/*
+ * Sentinel Status — Windhawk mod
+ *
+ * Reflects Sentinel's current severity in the Windows taskbar and exposes
+ * full Sentinel status data for other mods or scripts.
+ *
+ * Status file: C:\ProgramData\Sentinel\status.txt
+ * Data file:   C:\ProgramData\Sentinel\status.json
+ * Binary data: C:\ProgramData\Sentinel\sentinel_data.bin
+ *
+ * Expected status values: NORMAL | WARNING | CRITICAL
+ *
+ * NORMAL  -> default taskbar color (no tint)
+ * WARNING -> subtle amber tint
+ * CRITICAL -> subtle red tint with slow pulse (~1.5s)
+ *
+ * Safety:
+ * - Missing/empty/invalid status file -> NORMAL
+ * - Mod never crashes Explorer; falls back to original color on error
+ * - Polls file every 1-2 seconds; only redraws when color actually changes
+ *
+ * Build:
+ *   Requires Visual Studio Build Tools / MSVC with Windows SDK.
+ *   cl /EHsc /DUNICODE /D_UNICODE sentinel-status.cpp /link user32.lib gdi32.lib dwmapi.lib
+ */
+
+/* Forward declarations for editor/API compatibility */
+typedef struct _WH_MOD_MODULE_CONTEXT *PWH_MOD_MODULE_CONTEXT;
+
+/* ===== Windhawk mod metadata header ===== */
 WH_MOD_METADATA_BEGIN()
 WH_MOD_METADATA_NAME("Sentinel Status Reactive Taskbar")
 WH_MOD_METADATA_DESCRIPTION("Tints the Windows taskbar based on Sentinel's current severity status read from C:\\ProgramData\\Sentinel\\status.txt.")
@@ -52,7 +82,7 @@ typedef struct _SENTINEL_STATUS_DATA {
 static SENTINEL_STATUS_DATA g_statusData = {0};
 
 /* ===== Original function pointer ===== */
-static HRESULT(WINAPI * Real_DwmGetColorizationColor)(DWORD *, BOOL *) = DwmGetColorizationColor;
+static HRESULT(WINAPI * Real_DwmGetColorizationColor)(DWORD *, BOOL *) = NULL;
 
 /* ===== Helpers ===== */
 
@@ -130,7 +160,7 @@ static DWORD ApplyTint(DWORD baseColor, DWORD tint) {
 
 static const char *JsonFindString(const char *json, const char *key, char *out, DWORD outSize) {
     char search[128];
-    snprintf(search, sizeof(search), "\"%s\"", key);
+    sprintf_s(search, sizeof(search), "\"%s\"", key);
     const char *p = strstr(json, search);
     if (!p) return NULL;
     p += strlen(search);
@@ -150,7 +180,7 @@ static const char *JsonFindString(const char *json, const char *key, char *out, 
 
 static DWORD JsonFindUint(const char *json, const char *key) {
     char search[128];
-    snprintf(search, sizeof(search), "\"%s\"", key);
+    sprintf_s(search, sizeof(search), "\"%s\"", key);
     const char *p = strstr(json, search);
     if (!p) return 0;
     p += strlen(search);
@@ -330,6 +360,7 @@ BOOL WhModInit(PWH_MOD_MODULE_CONTEXT moduleContext) {
     g_taskbarWnd = FindTaskbarWnd();
 
     /* Hook DwmGetColorizationColor */
+    Real_DwmGetColorizationColor = DwmGetColorizationColor;
     if (!Wh_SetFunctionHook((void *)DwmGetColorizationColor, (void *)Hook_DwmGetColorizationColor, (void **)&Real_DwmGetColorizationColor)) {
         return FALSE;
     }
