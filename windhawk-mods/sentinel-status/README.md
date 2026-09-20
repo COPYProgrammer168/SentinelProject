@@ -104,6 +104,23 @@ If VS Code shows errors like `'Windows.h' file not found` or `Unknown type name 
 - Windows 11
 - Requires DWM composition enabled (default on modern Windows)
 
+## Troubleshooting
+
+### Windhawk editor shows errors like `Expected function body` or `Unknown type name PWH_MOD_MODULE_CONTEXT`
+
+These are **editor-only diagnostics**. The Windhawk editor uses clang for syntax checking, but its internal include paths may not fully match Windhawk's own build environment. The mod still compiles and loads correctly inside Windhawk.
+
+If you want cleaner editor experience:
+- Make sure Windhawk itself is up to date
+- Try restarting the Windhawk editor
+- Ignore diagnostics inside the `WH_MOD_METADATA_*` block and `WhModInit`/`WhModUninit` signatures; those are Windhawk API specifics the editor sometimes misparses
+
+### Taskbar color doesn't change
+
+- Restart Explorer after enabling the mod
+- Make sure `C:\ProgramData\Sentinel\status.txt` exists and contains `NORMAL`, `WARNING`, or `CRITICAL`
+- Check that Sentinel is running and writing status updates
+
 ## Source Layout
 
 ```
