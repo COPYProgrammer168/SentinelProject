@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel Review Dashboard</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0e14;
+            color: #c5c8c6;
+            padding: 20px;
+        }
+        h1 { color: #00ffcc; margin-bottom: 20px; font-size: 24px; }
+        h2 { color: #00ffcc; margin: 20px 0 10px; font-size: 18px; border-bottom: 1px solid #1e2833; padding-bottom: 5px; }
+        .section { background: #11161d; border: 1px solid #1e2833; border-radius: 6px; padding: 15px; margin-bottom: 20px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .stat-card { background: #0a0e14; border: 1px solid #1e2833; border-radius: 4px; padding: 15px; }
+        .stat-label { font-size: 12px; color: #8b949e; text-transform: uppercase; }
+        .stat-value { font-size: 28px; font-weight: bold; color: #00ffcc; margin-top: 5px; }
+        .stat-sub { font-size: 11px; color: #8b949e; margin-top: 5px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { text-align: left; padding: 8px; border-bottom: 1px solid #1e2833; font-size: 13px; }
+        th { color: #8b949e; font-weight: 600; text-transform: uppercase; font-size: 11px; }
+        tr:hover { background: #1e2833; }
+        .badge { padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; }
+        .badge-critical { background: #ff4444; color: #fff; }
+        .badge-log-only { background: #ffaa00; color: #000; }
+        .badge-info { background: #00ffcc; color: #000; }
+        .btn { padding: 6px 12px; border: 1px solid #00ffcc; background: transparent; color: #00ffcc; border-radius: 3px; cursor: pointer; font-size: 12px; }
+        .btn:hover { background: #00ffcc; color: #0a0e14; }
+        .btn-danger { border-color: #ff4444; color: #ff4444; }
+        .btn-danger:hover { background: #ff4444; color: #fff; }
+        input, select { background: #0a0e14; border: 1px solid #1e2833; color: #c5c8c6; padding: 6px; border-radius: 3px; font-size: 13px; }
+        .filters { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .toggle { position: relative; display: inline-block; width: 40px; height: 20px; }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #333; transition: .3s; border-radius: 20px; }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background: white; transition: .3s; border-radius: 50%; }
+        input:checked + .slider { background: #00ffcc; }
+        input:checked + .slider:before { transform: translateX(20px); }
+        .tabs { display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 1px solid #1e2833; }
+        .tab { padding: 8px 16px; cursor: pointer; color: #8b949e; border-bottom: 2px solid transparent; }
+        .tab.active { color: #00ffcc; border-bottom-color: #00ffcc; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .pagination { display: flex; gap: 5px; margin-top: 15px; }
+        .pagination button { padding: 5px 10px; background: #0a0e14; border: 1px solid #1e2833; color: #c5c8c6; cursor: pointer; border-radius: 3px; }
+        .pagination button:hover { border-color: #00ffcc; color: #00ffcc; }
+    </style>
+</head>
+<body>
+    <h1>Sentinel Review Dashboard</h1>
+
+    <div class="tabs">
+        <div class="tab active" data-tab="overview">Overview</div>
+        <div class="tab" data-tab="periods">Period History</div>
+        <div class="tab" data-tab="allowlist">Allowlist</div>
+        <div class="tab" data-tab="events">Network Events</div>
+        <div class="tab" data-tab="snapshots">System Snapshots</div>
+        <div class="tab" data-tab="alerts">Alerts</div>
+        <div class="tab" data-tab="apps">Applications</div>
+    </div>
+
+    <div id="tab-overview" class="tab-content active">
+        <div class="section">
+            <h2>Current Period Stats</h2>
+            <div class="stats-grid" id="period-stats"></div>
+        </div>
+        <div class="section">
+            <h2>Alerts Fired Per Day (Last 30 Days)</h2>
+            <canvas id="alertsChart" width="800" height="200"></canvas>
+        </div>
+    </div>
+
+    <div id="tab-periods" class="tab-content">
+        <div class="section">
+            <h2>Period History</h2>
+            <table>
+                <thead><tr><th>Period</th><th>Start</th><th>End</th><th>Events</th><th>Flagged</th><th>Alerts</th><th>Critical</th><th>Log Only</th></tr></thead>
+                <tbody id="periods-table"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="tab-allowlist" class="tab-content">
+        <div class="section">
+            <h2>Allowlist Manager</h2>
+            <table>
+                <thead><tr><th>Process</th><th>Path</th><th>Signer</th><th>Added</th><th>Connections</th><th>Action</th></tr></thead>
+                <tbody id="allowlist-table"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="tab-events" class="tab-content">
+        <div class="section">
+            <h2>Network Events Log</h2>
+            <div class="filters">
+                <input type="text" id="evt-process" placeholder="Process name...">
+                <input type="text" id="evt-ip" placeholder="Remote IP...">
+                <input type="date" id="evt-from">
+                <input type="date" id="evt-to">
+                <label><input type="checkbox" id="evt-flagged"> Flagged only</label>
+                <button class="btn" onclick="loadEvents()">Filter</button>
+            </div>
+            <table>
+                <thead><tr><th>Time</th><th>Process</th><th>Local</th><th>Remote</th><th>Protocol</th><th>Status</th><th>Flagged</th></tr></thead>
+                <tbody id="events-table"></tbody>
+            </table>
+            <div class="pagination" id="events-pagination"></div>
+        </div>
+    </div>
+
+    <div id="tab-snapshots" class="tab-content">
+        <div class="section">
+            <h2>System Snapshots</h2>
+            <table>
+                <thead><tr><th>Timestamp</th><th>Items</th><th>Actions</th></tr></thead>
+                <tbody id="snapshots-table"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="tab-alerts" class="tab-content">
+        <div class="section">
+            <h2>Alerts History</h2>
+            <div class="filters">
+                <select id="alert-severity"><option value="">All severities</option><option value="critical">Critical</option><option value="log_only">Log Only</option></select>
+                <input type="text" id="alert-type" placeholder="Alert type...">
+                <button class="btn" onclick="loadAlerts()">Filter</button>
+            </div>
+            <table>
+                <thead><tr><th>Time</th><th>Severity</th><th>Type</th><th>Target</th><th>Message</th><th>Resolution</th></tr></thead>
+                <tbody id="alerts-table"></tbody>
+            </table>
+            <div class="pagination" id="alerts-pagination"></div>
+        </div>
+    </div>
+
+    <div id="tab-apps" class="tab-content">
+        <div class="section">
+            <h2>Applications</h2>
+            <div class="filters">
+                <input type="text" id="app-search" placeholder="Search apps..." onkeyup="loadApps()">
+                <select id="app-filter" onchange="loadApps()"><option value="all">All</option><option value="running">Running</option><option value="trusted">Trusted</option><option value="protected">Protected</option><option value="unclassified">Unclassified</option></select>
+            </div>
+            <table>
+                <thead><tr><th>Name</th><th>Publisher</th><th>Status</th><th>Trusted</th><th>Protected</th></tr></thead>
+                <tbody id="apps-table"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="/static/dashboard.js"></script>
+</body>
+</html>

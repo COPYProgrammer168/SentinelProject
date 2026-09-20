@@ -1,0 +1,20 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Database
+sentinel.db
+*.db
+
+# IDE
+.vscode/
+.idea/
+
+# Kilo
+.kilo/
+
+# OS
+Thumbs.db
+Desktop.ini
