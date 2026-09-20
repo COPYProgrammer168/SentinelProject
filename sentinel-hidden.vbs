@@ -1,2 +1,6 @@
 Set WshShell = CreateObject("WScript.Shell")
-WshShell.Run Chr(34) & "%~dp0sentinel.bat" & Chr(34) & " " & Chr(34) & "run" & Chr(34), 0, False
+cmd = ""
+For i = 0 To WScript.Arguments.Count - 1
+    cmd = cmd & Chr(34) & WScript.Arguments(i) & Chr(34) & " "
+Next
+WshShell.Run cmd, 0, False
