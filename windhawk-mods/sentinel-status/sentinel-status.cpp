@@ -1,6 +1,11 @@
 /*
  * Sentinel Status — Windhawk mod
  *
+ * NOTE: VS Code IntelliSense may show errors here if the Windows SDK /
+ * Visual Studio C++ toolset is not installed locally. This file is meant
+ * to compile inside Windhawk's own build environment, where the required
+ * headers and Windhawk API macros are available.
+ *
  * Reflects Sentinel's current severity in the Windows taskbar and exposes
  * full Sentinel status data for other mods or scripts.
  *
