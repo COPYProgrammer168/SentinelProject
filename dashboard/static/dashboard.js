@@ -154,12 +154,22 @@ async function loadApps() {
 
 async function toggleApp(encodedName, type, checked) {
   const name = decodeURIComponent(encodedName);
-  await fetch(`${API}/apps/toggle`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, type, checked }),
-  });
-  loadApps();
+  try {
+    const res = await fetch(`${API}/apps/toggle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, type, checked }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `HTTP ${res.status}`);
+    }
+  } catch (err) {
+    alert(`Failed to update ${name}: ${err.message}`);
+  } finally {
+    loadApps();
+    loadAllowlist();
+  }
 }
 
 document.addEventListener('change', e => {

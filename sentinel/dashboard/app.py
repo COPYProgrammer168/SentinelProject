@@ -148,10 +148,10 @@ def create_app(db_path: Optional[str] = None) -> Flask:
         storage = _get_storage()
         running = {a["name"].lower(): a for a in get_running_apps()}
         installed = {a["name"].lower(): a for a in get_installed_apps()}
+        allow = storage.get_allowlist()
+        allow_map = {a["process_name"].lower(): a for a in allow}
         merged: Dict[str, Dict[str, Any]] = {}
         for key, app in {**running, **installed}.items():
-            allow = storage.get_allowlist()
-            allow_map = {a["process_name"].lower(): a for a in allow}
             entry = allow_map.get(key)
             app["trusted"] = entry is not None
             app["protected"] = entry is not None and bool(entry.get("is_blocked"))
@@ -182,21 +182,28 @@ def create_app(db_path: Optional[str] = None) -> Flask:
     def api_apps_toggle():
         storage = _get_storage()
         data = request.get_json(force=True)
-        name = data.get("name", "")
-        type_ = data.get("type", "")
+        name = (data.get("name") or "").strip()
+        type_ = (data.get("type") or "").strip()
         checked = bool(data.get("checked"))
-        if type_ == "trusted":
-            if checked:
-                storage.add_allowlist_entry(name, manual=True)
+        if not name or not type_:
+            return jsonify({"ok": False, "error": "missing name or type"}), 400
+        try:
+            if type_ == "trusted":
+                if checked:
+                    storage.add_allowlist_entry(name, manual=True)
+                else:
+                    storage.remove_allowlist_entry(name)
+            elif type_ == "protected":
+                if checked:
+                    storage.set_allowlist_blocked(name, True)
+                    storage.add_blocklist_entry("app", name, reason="User blocked via dashboard")
+                else:
+                    storage.set_allowlist_blocked(name, False)
+                    storage.remove_blocklist_entry("app", name)
             else:
-                storage.remove_allowlist_entry(name)
-        elif type_ == "protected":
-            if checked:
-                storage.set_allowlist_blocked(name, True)
-                storage.add_blocklist_entry("app", name, reason="User blocked via dashboard")
-            else:
-                storage.set_allowlist_blocked(name, False)
-                storage.remove_blocklist_entry("app", name)
-        return jsonify({"ok": True})
+                return jsonify({"ok": False, "error": "unknown type"}), 400
+            return jsonify({"ok": True})
+        except Exception as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 500
 
     return app
