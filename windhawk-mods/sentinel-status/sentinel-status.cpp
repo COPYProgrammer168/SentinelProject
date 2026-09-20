@@ -1,48 +1,3 @@
-/*
- * Sentinel Status — Windhawk mod
- *
- * Reflects Sentinel's current severity in the Windows taskbar and exposes
- * full Sentinel status data for other mods or scripts.
- *
- * Status file: C:\ProgramData\Sentinel\status.txt
- * Data file:   C:\ProgramData\Sentinel\status.json
- * Binary data: C:\ProgramData\Sentinel\sentinel_data.bin
- *
- * Expected status values: NORMAL | WARNING | CRITICAL
- *
- * NORMAL  -> default taskbar color (no tint)
- * WARNING -> subtle amber tint
- * CRITICAL -> subtle red tint with slow pulse (~1.5s)
- *
- * The binary data file contains:
- *   - magic header "SENTINEL" + version 1
- *   - current status byte (0=NORMAL, 1=WARNING, 2=CRITICAL)
- *   - alerts_total (DWORD)
- *   - alerts_critical (DWORD)
- *   - flagged_network_events (DWORD)
- *   - last_updated timestamp (char[20])
- *
- * Safety:
- * - Missing/empty/invalid status file -> NORMAL
- * - Mod never crashes Explorer; falls back to original color on error
- * - Polls file every 1-2 seconds; only redraws when color actually changes
- *
- * Build:
- *   Requires Visual Studio Build Tools / MSVC with Windows SDK.
- *   cl /EHsc /DUNICODE /D_UNICODE sentinel-status.cpp /link user32.lib gdi32.lib dwmapi.lib
- */
-
-#include <Windows.h>
-#include <dwmapi.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#pragma comment(lib, "user32.lib")
-#pragma comment(lib, "gdi32.lib")
-#pragma comment(lib, "dwmapi.lib")
-
-/* ===== Windhawk mod metadata header ===== */
 WH_MOD_METADATA_BEGIN()
 WH_MOD_METADATA_NAME("Sentinel Status Reactive Taskbar")
 WH_MOD_METADATA_DESCRIPTION("Tints the Windows taskbar based on Sentinel's current severity status read from C:\\ProgramData\\Sentinel\\status.txt.")
@@ -53,6 +8,12 @@ WH_MOD_METADATA_TAGS("taskbar", "sentinel", "security", "status")
 WH_MOD_METADATA_IS_BETA(false)
 WH_MOD_METADATA_URL("https://github.com/SentinelProject/sentinel")
 WH_MOD_METADATA_END()
+
+#include <Windows.h>
+#include <dwmapi.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 /* ===== Constants ===== */
 #define STATUS_FILE_PATH "C:\\ProgramData\\Sentinel\\status.txt"
@@ -73,8 +34,8 @@ static const DWORD COLOR_WARNING_TINT = 0x1AFFAA00; /* alpha=0x1A, amber */
 static DWORD COLOR_CRITICAL_TINT = 0x1AFF0000;
 
 /* ===== State ===== */
-static HANDLE g_pollTimer = NULL;
-static HANDLE g_pulseTimer = NULL;
+static UINT_PTR g_pollTimer = 0;
+static UINT_PTR g_pulseTimer = 0;
 static HWND g_taskbarWnd = NULL;
 static DWORD g_currentStatusHash = 0;
 static int g_pulseState = 0;
@@ -376,7 +337,7 @@ BOOL WhModInit(PWH_MOD_MODULE_CONTEXT moduleContext) {
     /* Start polling timer */
     g_pollTimer = SetTimer(NULL, 0, POLL_INTERVAL_MS, PollTimerProc);
     if (!g_pollTimer) {
-        Wh_UnsetFunctionHook((void *)DwmGetColorizationColor);
+        Wh_RemoveFunctionHook((void *)DwmGetColorizationColor);
         return FALSE;
     }
 
@@ -384,7 +345,7 @@ BOOL WhModInit(PWH_MOD_MODULE_CONTEXT moduleContext) {
     g_pulseTimer = SetTimer(NULL, 0, PULSE_INTERVAL_MS, PulseTimerProc);
     if (!g_pulseTimer) {
         KillTimer(NULL, g_pollTimer);
-        Wh_UnsetFunctionHook((void *)DwmGetColorizationColor);
+        Wh_RemoveFunctionHook((void *)DwmGetColorizationColor);
         return FALSE;
     }
 
@@ -396,14 +357,14 @@ void WhModUninit(PWH_MOD_MODULE_CONTEXT moduleContext) {
 
     if (g_pollTimer) {
         KillTimer(NULL, g_pollTimer);
-        g_pollTimer = NULL;
+        g_pollTimer = 0;
     }
     if (g_pulseTimer) {
         KillTimer(NULL, g_pulseTimer);
-        g_pulseTimer = NULL;
+        g_pulseTimer = 0;
     }
 
-    Wh_UnsetFunctionHook((void *)DwmGetColorizationColor);
+    Wh_RemoveFunctionHook((void *)DwmGetColorizationColor);
     Real_DwmGetColorizationColor = DwmGetColorizationColor;
 
     g_taskbarWnd = NULL;
