@@ -42,6 +42,47 @@ build.bat
 
 This produces `sentinel-status.dll`.
 
+## VS Code IntelliSense
+
+If VS Code shows errors like `'Windows.h' file not found` or `Unknown type name 'DWORD'`, your C/C++ extension doesn't know where the Windows SDK is.
+
+### Option A: Auto-setup
+
+```powershell
+.\setup-vscode.ps1
+```
+
+### Option B: Manual setup
+
+1. Install **Visual Studio Build Tools** with the **"Desktop development with C++"** workload.
+2. In VS Code, open the command palette (`Ctrl+Shift+P`) → **C/C++: Edit Configurations (JSON)**.
+3. Update `includePath` and `compilerPath` to match your installation, for example:
+
+```json
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "C:/Program Files (x86)/Windows Kits/10/Include/10.0.22000.0/um",
+                "C:/Program Files (x86)/Windows Kits/10/Include/10.0.22000.0/shared",
+                "C:/Program Files (x86)/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.38.33130/include"
+            ],
+            "defines": ["_DEBUG", "UNICODE", "_UNICODE"],
+            "compilerPath": "C:/Program Files (x86)/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.38.33130/bin/Hostx64/x64/cl.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-msvc-x64"
+        }
+    ],
+    "version": 4
+}
+```
+
+4. Adjust the Windows SDK version (`10.0.22000.0`) and MSVC path (`14.38.33130`) to match what you have installed.
+5. Reload VS Code.
+
 ## Installing in Windhawk
 
 1. Open Windhawk
@@ -66,7 +107,8 @@ This produces `sentinel-status.dll`.
 ## Source Layout
 
 ```
-sentinel-status.cpp   - Mod source (hook + timer + color logic)
-build.bat             - MSVC build script
-README.md             - This file
+sentinel-status.cpp     - Mod source (hook + timer + color logic)
+build.bat               - MSVC build script
+setup-vscode.ps1        - Auto-configure VS Code IntelliSense
+README.md               - This file
 ```

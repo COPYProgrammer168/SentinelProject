@@ -1,14 +1,26 @@
 /*
  * Sentinel Status — Windhawk mod
  *
- * Reflects Sentinel's current severity in the Windows taskbar.
+ * Reflects Sentinel's current severity in the Windows taskbar and exposes
+ * full Sentinel status data for other mods or scripts.
  *
  * Status file: C:\ProgramData\Sentinel\status.txt
- * Expected values: NORMAL | WARNING | CRITICAL
+ * Data file:   C:\ProgramData\Sentinel\status.json
+ * Binary data: C:\ProgramData\Sentinel\sentinel_data.bin
+ *
+ * Expected status values: NORMAL | WARNING | CRITICAL
  *
  * NORMAL  -> default taskbar color (no tint)
  * WARNING -> subtle amber tint
  * CRITICAL -> subtle red tint with slow pulse (~1.5s)
+ *
+ * The binary data file contains:
+ *   - magic header "SENTINEL" + version 1
+ *   - current status byte (0=NORMAL, 1=WARNING, 2=CRITICAL)
+ *   - alerts_total (DWORD)
+ *   - alerts_critical (DWORD)
+ *   - flagged_network_events (DWORD)
+ *   - last_updated timestamp (char[20])
  *
  * Safety:
  * - Missing/empty/invalid status file -> NORMAL
@@ -44,8 +56,12 @@ WH_MOD_METADATA_END()
 
 /* ===== Constants ===== */
 #define STATUS_FILE_PATH "C:\\ProgramData\\Sentinel\\status.txt"
+#define STATUS_JSON_PATH "C:\\ProgramData\\Sentinel\\status.json"
+#define DATA_BIN_PATH "C:\\ProgramData\\Sentinel\\sentinel_data.bin"
 #define POLL_INTERVAL_MS 1500
 #define PULSE_INTERVAL_MS 750
+#define DATA_BIN_MAGIC "SENTINEL"
+#define DATA_BIN_VERSION 1
 
 /* NORMAL = no tint; use default colorization color */
 static const DWORD COLOR_NORMAL_ARGB = 0x00000000;
@@ -62,6 +78,17 @@ static HANDLE g_pulseTimer = NULL;
 static HWND g_taskbarWnd = NULL;
 static DWORD g_currentStatusHash = 0;
 static int g_pulseState = 0;
+
+/* ===== Data structures for full status payload ===== */
+typedef struct _SENTINEL_STATUS_DATA {
+    char status; /* 0=NORMAL, 1=WARNING, 2=CRITICAL */
+    DWORD alerts_total;
+    DWORD alerts_critical;
+    DWORD flagged_network_events;
+    char last_updated[20]; /* ISO timestamp string */
+} SENTINEL_STATUS_DATA;
+
+static SENTINEL_STATUS_DATA g_statusData = {0};
 
 /* ===== Original function pointer ===== */
 static HRESULT(WINAPI * Real_DwmGetColorizationColor)(DWORD *, BOOL *) = DwmGetColorizationColor;
@@ -98,6 +125,22 @@ static BOOL ReadStatusFile(char *buffer, DWORD bufferSize) {
     return TRUE;
 }
 
+static BOOL ReadFileAll(const char *path, char *buffer, DWORD bufferSize) {
+    HANDLE hFile = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                               NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (hFile == INVALID_HANDLE_VALUE) {
+        return FALSE;
+    }
+    DWORD read = 0;
+    BOOL result = ReadFile(hFile, buffer, bufferSize - 1, &read, NULL);
+    CloseHandle(hFile);
+    if (!result || read == 0) {
+        return FALSE;
+    }
+    buffer[read] = '\0';
+    return TRUE;
+}
+
 static BOOL IsCriticalPulseActive() {
     return (GetTickCount64() / PULSE_INTERVAL_MS) % 2 == 0;
 }
@@ -120,6 +163,77 @@ static DWORD ApplyTint(DWORD baseColor, DWORD tint) {
     BYTE b = (BYTE)(baseB * (1.0f - factor) + tintB * factor);
 
     return (baseA << 24) | (r << 16) | (g << 8) | b;
+}
+
+/* ===== JSON parsing helpers ===== */
+
+static const char *JsonFindString(const char *json, const char *key, char *out, DWORD outSize) {
+    char search[128];
+    snprintf(search, sizeof(search), "\"%s\"", key);
+    const char *p = strstr(json, search);
+    if (!p) return NULL;
+    p += strlen(search);
+    while (*p == ' ' || *p == ':' || *p == '\t' || *p == '\n' || *p == '\r') p++;
+    if (*p != '"') return NULL;
+    p++;
+    DWORD i = 0;
+    while (*p && *p != '"' && i < outSize - 1) {
+        if (*p == '\\' && *(p+1)) {
+            p++;
+        }
+        out[i++] = *p++;
+    }
+    out[i] = '\0';
+    return out;
+}
+
+static DWORD JsonFindUint(const char *json, const char *key) {
+    char search[128];
+    snprintf(search, sizeof(search), "\"%s\"", key);
+    const char *p = strstr(json, search);
+    if (!p) return 0;
+    p += strlen(search);
+    while (*p == ' ' || *p == ':' || *p == '\t' || *p == '\n' || *p == '\r') p++;
+    return (DWORD)strtoul(p, NULL, 10);
+}
+
+static void ParseStatusJson(const char *json, SENTINEL_STATUS_DATA *data) {
+    char status[32] = {0};
+    if (JsonFindString(json, "status", status, sizeof(status))) {
+        if (strcmp(status, "CRITICAL") == 0) {
+            data->status = 2;
+        } else if (strcmp(status, "WARNING") == 0) {
+            data->status = 1;
+        } else {
+            data->status = 0;
+        }
+    }
+    data->alerts_total = JsonFindUint(json, "alerts_total");
+    data->alerts_critical = JsonFindUint(json, "alerts_critical");
+    data->flagged_network_events = JsonFindUint(json, "flagged_network_events");
+    char updated[64] = {0};
+    if (JsonFindString(json, "updated", updated, sizeof(updated))) {
+        strncpy(data->last_updated, updated, sizeof(data->last_updated) - 1);
+        data->last_updated[sizeof(data->last_updated) - 1] = '\0';
+    }
+}
+
+static void WriteDataBin(const SENTINEL_STATUS_DATA *data) {
+    HANDLE hFile = CreateFileA(DATA_BIN_PATH, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (hFile == INVALID_HANDLE_VALUE) {
+        return;
+    }
+    DWORD written = 0;
+    char header[9] = DATA_BIN_MAGIC;
+    BYTE version = DATA_BIN_VERSION;
+    WriteFile(hFile, header, 8, &written, NULL);
+    WriteFile(hFile, &version, 1, &written, NULL);
+    WriteFile(hFile, &data->status, 1, &written, NULL);
+    WriteFile(hFile, &data->alerts_total, 4, &written, NULL);
+    WriteFile(hFile, &data->alerts_critical, 4, &written, NULL);
+    WriteFile(hFile, &data->flagged_network_events, 4, &written, NULL);
+    WriteFile(hFile, data->last_updated, 20, &written, NULL);
+    CloseHandle(hFile);
 }
 
 /* ===== Hook: DwmGetColorizationColor ===== */
@@ -204,6 +318,13 @@ static VOID CALLBACK PollTimerProc(HWND hwnd, UINT msg, UINT_PTR id, DWORD time)
             InvalidateRect(g_taskbarWnd, NULL, TRUE);
             UpdateWindow(g_taskbarWnd);
         }
+    }
+
+    /* Update full status data from JSON */
+    char json[4096] = {0};
+    if (ReadFileAll(STATUS_JSON_PATH, json, sizeof(json))) {
+        ParseStatusJson(json, &g_statusData);
+        WriteDataBin(&g_statusData);
     }
 }
 
