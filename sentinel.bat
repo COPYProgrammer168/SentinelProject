@@ -17,13 +17,9 @@ goto :eof
 :hidden
 shift
 set HIDDEN_ARGS=%*
-if exist "%VENV_PYW%" (
-    set HIDDEN_CMD=%VENV_PYW%
-) else if exist "%VENV_PY%" (
-    set HIDDEN_CMD=%VENV_PY%
-) else (
-    set HIDDEN_CMD=python
+if not exist "%VENV_PYW%" (
+    echo Hidden mode requires .venv\Scripts\pythonw.exe.>&2
+    exit /b 1
 )
-
-start "" /b ""%HIDDEN_CMD%"" --hidden -m sentinel.main %HIDDEN_ARGS% >NUL 2>&1
+start "" /b ""%VENV_PYW%"" --hidden -m sentinel.main %HIDDEN_ARGS% >NUL 2>&1
 goto :eof

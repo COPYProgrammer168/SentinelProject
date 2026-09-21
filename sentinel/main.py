@@ -455,20 +455,16 @@ def cmd_overlay(args: argparse.Namespace) -> None:
 
 
 def _hide_console() -> None:
-    """Hide or detach the console window on Windows for fully silent background operation."""
+    """Best-effort hide of any attached console window on Windows."""
     if sys.platform != "win32":
         return
     try:
         import ctypes
-        from ctypes import wintypes
-
         kernel32 = ctypes.windll.kernel32
         user32 = ctypes.windll.user32
-
         hwnd = kernel32.GetConsoleWindow()
         if hwnd:
-            user32.ShowWindow(hwnd, 0)  # SW_HIDE
-        kernel32.FreeConsole()
+            user32.ShowWindow(hwnd, 0)
     except Exception:
         pass
 
