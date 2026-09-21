@@ -18,13 +18,11 @@ if ($Hidden) {
     if (-not (Test-Path $pythonExe)) {
         $pythonExe = $venvPython
     }
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = $pythonExe
-    $psi.Arguments = "-m sentinel.main " + ($Arguments -join ' ')
-    $psi.WindowStyle = 'Hidden'
-    $psi.CreateNoWindow = $true
-    $psi.UseShellExecute = $true
-    [System.Diagnostics.Process]::Start($psi) | Out-Null
+    if (-not (Test-Path $pythonExe)) {
+        $pythonExe = "python"
+    }
+    $argsString = "-m sentinel.main " + ($Arguments -join ' ')
+    Start-Process -FilePath $pythonExe -ArgumentList $argsString -WindowStyle Hidden -NoNewWindow -RedirectStandardOutput NUL -RedirectStandardError NUL | Out-Null
 } else {
     if (Test-Path $venvPython) {
         & $venvPython -m sentinel.main @Arguments

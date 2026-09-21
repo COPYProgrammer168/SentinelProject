@@ -5,12 +5,15 @@ pythonw = fso.BuildPath(scriptDir, ".venv\Scripts\pythonw.exe")
 python = fso.BuildPath(scriptDir, ".venv\Scripts\python.exe")
 bat = fso.BuildPath(scriptDir, "sentinel.bat")
 
-If Not fso.FileExists(pythonw) Then
-    pythonw = python
+launchCmd = ""
+If fso.FileExists(pythonw) Then
+    launchCmd = Chr(34) & pythonw & Chr(34) & " -m sentinel.main run"
+ElseIf fso.FileExists(python) Then
+    launchCmd = Chr(34) & python & Chr(34) & " -m sentinel.main run"
+ElseIf fso.FileExists(bat) Then
+    launchCmd = Chr(34) & bat & Chr(34) & " --hidden run"
 End If
 
-If fso.FileExists(pythonw) Then
-    WshShell.Run Chr(34) & pythonw & Chr(34) & " -m sentinel.main run", 0, False
-Else
-    WshShell.Run Chr(34) & bat & Chr(34) & " --hidden run", 0, False
+If launchCmd <> "" Then
+    WshShell.Run "cmd /c " & launchCmd & " >NUL 2>&1", 0, False
 End If

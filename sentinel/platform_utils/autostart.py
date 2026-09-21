@@ -78,10 +78,9 @@ def _enable_windows() -> bool:
         pythonw = _get_pythonw_path()
         main_py = _get_main_py_path()
 
-        # VBScript to launch pythonw completely invisible (window style 0, async)
         vbs_content = (
             f'CreateObject("Wscript.Shell").Run '
-            f'"""{pythonw}"" ""{main_py}"" run", 0, False\n'
+            f'""{pythonw}"" ""{main_py}"" run", 0, False\n'
         )
 
         with open(vbs_path, "w", encoding="utf-8") as f:

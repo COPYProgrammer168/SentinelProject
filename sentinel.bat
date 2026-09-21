@@ -25,5 +25,5 @@ if exist "%VENV_PYW%" (
     set HIDDEN_CMD=python
 )
 
-cscript //nologo "%SCRIPT_DIR%run-hidden.vbs" "%HIDDEN_CMD%" -m sentinel.main %HIDDEN_ARGS%
+cscript //nologo "%SCRIPT_DIR%run-hidden.vbs" "%HIDDEN_CMD%" -m sentinel.main %HIDDEN_ARGS% >NUL 2>&1
 goto :eof
