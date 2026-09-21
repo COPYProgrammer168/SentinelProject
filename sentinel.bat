@@ -2,6 +2,7 @@
 setlocal
 set SCRIPT_DIR=%~dp0
 set VENV_PY=%SCRIPT_DIR%.venv\Scripts\python.exe
+set VENV_PYW=%SCRIPT_DIR%.venv\Scripts\pythonw.exe
 
 if "%1"=="--hidden" goto :hidden
 if "%1"=="-hidden" goto :hidden
@@ -16,7 +17,9 @@ goto :eof
 :hidden
 shift
 set HIDDEN_ARGS=%*
-if exist "%VENV_PY%" (
+if exist "%VENV_PYW%" (
+    set HIDDEN_CMD=%VENV_PYW%
+) else if exist "%VENV_PY%" (
     set HIDDEN_CMD=%VENV_PY%
 ) else (
     set HIDDEN_CMD=python

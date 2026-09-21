@@ -11,19 +11,24 @@ param(
 
 $scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent -Path $MyInvocation.MyCommand.Definition }
 $venvPython = Join-Path $scriptDir ".venv\Scripts\python.exe"
-
-if (-not (Test-Path $venvPython)) {
-    $venvPython = "python"
-}
+$venvPythonw = Join-Path $scriptDir ".venv\Scripts\pythonw.exe"
 
 if ($Hidden) {
+    $pythonExe = $venvPythonw
+    if (-not (Test-Path $pythonExe)) {
+        $pythonExe = $venvPython
+    }
     $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = $venvPython
+    $psi.FileName = $pythonExe
     $psi.Arguments = "-m sentinel.main " + ($Arguments -join ' ')
     $psi.WindowStyle = 'Hidden'
     $psi.CreateNoWindow = $true
     $psi.UseShellExecute = $true
     [System.Diagnostics.Process]::Start($psi) | Out-Null
 } else {
-    & $venvPython -m sentinel.main @Arguments
+    if (Test-Path $venvPython) {
+        & $venvPython -m sentinel.main @Arguments
+    } else {
+        & python -m sentinel.main @Arguments
+    }
 }
