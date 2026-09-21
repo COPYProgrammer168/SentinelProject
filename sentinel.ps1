@@ -21,8 +21,7 @@ if ($Hidden) {
     if (-not (Test-Path $pythonExe)) {
         $pythonExe = "python"
     }
-    $argsString = "-m sentinel.main " + ($Arguments -join ' ')
-    Start-Process -FilePath $pythonExe -ArgumentList $argsString -WindowStyle Hidden -NoNewWindow -RedirectStandardOutput NUL -RedirectStandardError NUL | Out-Null
+    Start-Process -FilePath $pythonExe -ArgumentList ("--hidden " + ($Arguments -join ' ')) -WindowStyle Hidden -NoNewWindow | Out-Null
 } else {
     if (Test-Path $venvPython) {
         & $venvPython -m sentinel.main @Arguments

@@ -80,7 +80,7 @@ def _enable_windows() -> bool:
 
         vbs_content = (
             f'CreateObject("Wscript.Shell").Run '
-            f'""{pythonw}"" ""{main_py}"" run", 0, False\n'
+            f'""{pythonw}"" --hidden -m sentinel.main run", 0, False\n'
         )
 
         with open(vbs_path, "w", encoding="utf-8") as f:

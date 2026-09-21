@@ -22,9 +22,6 @@ You can run Sentinel using the built-in launcher scripts:
 # Run completely hidden without any PowerShell window (double-click this)
 .\sentinel-hidden.vbs
 
-# Or run pythonw directly for completely silent background operation
-& .\.venv\Scripts\pythonw.exe -m sentinel.main run
-
 # Start monitoring with immediate anomaly alerting (bypasses learning mode)
 .\sentinel.ps1 run --immediate-mode
 

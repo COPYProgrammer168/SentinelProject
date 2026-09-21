@@ -111,18 +111,19 @@ def cmd_run(args: argparse.Namespace) -> None:
 
                 sys_detector.check_changes(force=False)
 
-                if net_res.get("flagged", 0) > 0:
-                    logger.alert(
-                        f"Cycle #{loop_count}: {net_res['flagged']} FLAGGED connections! "
-                        f"(Total active: {net_res['total_connections']})"
-                    )
-                elif loop_count % 12 == 0 or loop_count == 1:
+                if loop_count % 12 == 0 or loop_count == 1:
                     mode_str = "LEARNING" if net_res.get("is_learning") else "ALERTING"
                     idle_str = f"idle {int(net_res.get('idle_seconds', 0))}s"
-                    logger.info(
-                        f"Cycle #{loop_count}: {net_res['total_connections']} connections active "
-                        f"[{mode_str} mode | {idle_str}]"
-                    )
+                    if net_res.get("flagged", 0) > 0:
+                        logger.alert(
+                            f"Cycle #{loop_count}: {net_res['flagged']} FLAGGED connections! "
+                            f"(Total active: {net_res['total_connections']}) [{mode_str} mode | {idle_str}]"
+                        )
+                    else:
+                        logger.info(
+                            f"Cycle #{loop_count}: {net_res['total_connections']} connections active "
+                            f"[{mode_str} mode | {idle_str}]"
+                        )
 
             except Exception as e:
                 logger.warn(f"Error in monitoring loop: {e}")
@@ -453,12 +454,32 @@ def cmd_overlay(args: argparse.Namespace) -> None:
     run_overlay()
 
 
+def _hide_console() -> None:
+    """Hide or detach the console window on Windows for fully silent background operation."""
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        kernel32 = ctypes.windll.kernel32
+        user32 = ctypes.windll.user32
+
+        hwnd = kernel32.GetConsoleWindow()
+        if hwnd:
+            user32.ShowWindow(hwnd, 0)  # SW_HIDE
+        kernel32.FreeConsole()
+    except Exception:
+        pass
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="sentinel",
         description="Sentinel - Personal Laptop Security Monitor (Phases 1 & 2 Prototype)",
     )
     parser.add_argument("--config", "-c", help="Path to sentinel_config.json")
+    parser.add_argument("--hidden", action="store_true", help="Run completely hidden with no console window (Windows only)")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     run_parser = subparsers.add_parser("run", help="Start continuous monitoring daemon")
@@ -504,6 +525,9 @@ def main() -> None:
     subparsers.add_parser("overlay", help="Start always-on-top alert overlay")
 
     args = parser.parse_args()
+
+    if getattr(args, "hidden", False):
+        _hide_console()
 
     if not args.command:
         parser.print_help()
