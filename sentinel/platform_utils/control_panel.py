@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from PyQt6.QtCore import QTimer, Qt
-from PyQt6.QtGui import QColor, QFont
+from PyQt6.QtGui import QColor, QFont, QCursor
 from PyQt6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -81,10 +81,18 @@ class ControlPanel(QWidget):
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(8)
 
+        header = QHBoxLayout()
         title = QLabel("Sentinel Control Panel")
         title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
         title.setStyleSheet("color: #00ffcc;")
-        layout.addWidget(title)
+        header.addWidget(title)
+        header.addStretch()
+        close_btn = QPushButton("Close")
+        close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        close_btn.setStyleSheet("background-color: #3a1a1a; color: #ff4444; padding: 6px 12px;")
+        close_btn.clicked.connect(self.close)
+        header.addWidget(close_btn)
+        layout.addLayout(header)
 
         tabs = QTabWidget()
         layout.addWidget(tabs)
