@@ -454,6 +454,11 @@ def cmd_overlay(args: argparse.Namespace) -> None:
     run_overlay()
 
 
+def cmd_control_panel(args: argparse.Namespace) -> None:
+    from sentinel.platform_utils.control_panel import run_control_panel
+    run_control_panel()
+
+
 def _hide_console() -> None:
     """Best-effort hide of any attached console window on Windows."""
     if sys.platform != "win32":
@@ -520,6 +525,8 @@ def main() -> None:
 
     subparsers.add_parser("overlay", help="Start always-on-top alert overlay")
 
+    subparsers.add_parser("control-panel", help="Open desktop control panel GUI")
+
     args = parser.parse_args()
 
     if getattr(args, "hidden", False):
@@ -541,6 +548,7 @@ def main() -> None:
         "optimize": cmd_optimize,
         "optimize-now": cmd_optimize_now,
         "overlay": cmd_overlay,
+        "control-panel": cmd_control_panel,
     }
 
     cmd_fn = commands.get(args.command)

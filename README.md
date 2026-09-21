@@ -43,6 +43,9 @@ You can run Sentinel using the built-in launcher scripts:
 # Start always-on-top alert overlay widget (PyQt6)
 .\sentinel.ps1 overlay
 
+# Open desktop control panel GUI
+.\sentinel.ps1 control-panel
+
 # Enable background autostart on laptop boot/login (runs windowless in background)
 .\sentinel.ps1 autostart enable
 
@@ -61,6 +64,7 @@ sentinel.bat allowlist list
 sentinel.bat alerts
 sentinel.bat dashboard
 sentinel.bat overlay
+sentinel.bat control-panel
 
 :: Run hidden without terminal window (double-click sentinel-hidden.vbs)
 sentinel-hidden.vbs
